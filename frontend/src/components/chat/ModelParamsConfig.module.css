@@ -1,0 +1,18 @@
+.container {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.panel {
+  background-color: #fafafa;
+}
+
+.sliderWithInput {
+  display: flex;
+  align-items: center;
+}
+
+.infoIcon {
+  margin-left: 4px;
+  color: #1890ff;
+}

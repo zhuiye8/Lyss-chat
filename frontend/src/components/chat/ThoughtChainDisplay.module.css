@@ -1,0 +1,26 @@
+.container {
+  margin-top: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  background-color: #fafafa;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.header h3 {
+  margin: 0;
+}
+
+.panel {
+  background-color: #fafafa;
+}
+
+.thoughtChain {
+  padding: 16px;
+}
