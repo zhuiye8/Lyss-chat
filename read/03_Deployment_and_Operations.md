@@ -163,8 +163,21 @@ REDIS_URL=redis://redis:6379
 QDRANT_URL=http://qdrant:6333
 
 # --- Mem0 Configuration ---
-# Mem0 会自动使用 QDRANT_URL，但也可以显式配置
-MEM0_VECTOR_STORE_URI=${QDRANT_URL}
+# Mem0 服务自身用于提取、查询和总结记忆所使用的LLM和Embedding模型
+MEM0_LLM_PROVIDER=openai
+MEM0_LLM_MODEL=gpt-4o-mini
+MEM0_EMBEDDING_MODEL=text-embedding-3-small
+MEM0_PROVIDER_API_KEY=sk-your_openai_api_key_for_mem0
+MEM0_PROVIDER_BASE_URL=https://api.openai.com/v1
+
+# --- File Upload Configuration ---
+MAX_FILE_SIZE_MB=50
+ALLOWED_FILE_TYPES=pdf,docx,txt,md
+UPLOAD_DIR=/app/uploads
+
+# --- Security Configuration ---
+# 用于加密供应商API密钥的密钥
+ENCRYPTION_KEY=your_32_character_encryption_key_here
 ```
 
 ## 4. 启动与运维
@@ -190,9 +203,108 @@ MEM0_VECTOR_STORE_URI=${QDRANT_URL}
 *   **更新镜像**: `docker-compose pull`
 *   **重建服务**: `docker-compose up --build -d <service_name>`
 
-## 5. 备份与恢复
+## 5. 生产环境安全配置
 
-*   **PostgreSQL**: 数据持久化在 `postgres_data` Docker 卷中。应定期使用 `pg_dump` 对数据库进行逻辑备份。
-*   **Qdrant**: 数据持久化在 `qdrant_data` 卷中。Qdrant 提供了快照 (snapshot) API，可以用于创建和恢复数据备份。
+### 5.1. HTTPS 和 SSL 配置
 
-通过标准化的容器部署方案，我们可以确保开发、测试和生产环境的一致性，极大地降低了部署和运维的复杂性。
+在生产环境中，必须为前端和API服务配置HTTPS。
+
+```yaml
+# docker-compose.prod.yml 示例片段
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl # SSL证书目录
+    depends_on:
+      - frontend
+      - backend
+```
+
+### 5.2. 环境变量安全管理
+
+**生产环境必须**:
+1. 使用强随机密钥 (32字符以上)
+2. 定期轮换API密钥
+3. 使用环境变量或密钥管理系统，禁止硬编码
+
+```bash
+# 生成强密钥示例
+openssl rand -hex 32  # 生成ENCRYPTION_KEY
+openssl rand -base64 48  # 生成SECRET_KEY
+```
+
+### 5.3. 数据库连接池配置
+
+```dotenv
+# 生产环境数据库优化
+POSTGRES_MAX_CONNECTIONS=100
+POSTGRES_SHARED_BUFFERS=256MB
+POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+```
+
+## 6. 监控与日志
+
+### 6.1. 应用监控
+
+推荐集成以下监控解决方案：
+- **Prometheus + Grafana**: 系统指标监控
+- **Sentry**: 错误追踪和性能监控
+- **ELK Stack**: 日志聚合和分析
+
+### 6.2. 关键指标
+
+需要监控的关键指标：
+- API响应时间 (P95, P99)
+- 数据库连接池使用率
+- AI供应商API调用成功率
+- 用户活跃度和成本趋势
+
+## 7. 备份与恢复
+
+### 7.1. 数据备份策略
+
+```bash
+# PostgreSQL 自动备份脚本
+#!/bin/bash
+BACKUP_DIR="/backups/postgres"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+docker-compose exec -T db pg_dump -U $POSTGRES_USER $POSTGRES_DB > \
+  "$BACKUP_DIR/lyss_backup_$TIMESTAMP.sql"
+
+# 保留最近7天的备份
+find $BACKUP_DIR -name "lyss_backup_*.sql" -mtime +7 -delete
+```
+
+### 7.2. Qdrant 数据备份
+
+```bash
+# Qdrant 快照备份
+curl -X POST "http://localhost:6333/collections/{collection_name}/snapshots"
+```
+
+## 8. 性能优化
+
+### 8.1. 数据库优化
+
+```sql
+-- 建议的PostgreSQL配置优化
+ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
+ALTER SYSTEM SET track_activity_query_size = 2048;
+ALTER SYSTEM SET log_min_duration_statement = 1000; -- 记录慢查询
+```
+
+### 8.2. Redis 缓存策略
+
+```python
+# 示例：用户模型列表缓存
+CACHE_TTL_USER_MODELS = 300  # 5分钟
+CACHE_TTL_PROVIDER_LIST = 600  # 10分钟
+```
+
+通过标准化的容器部署方案和完善的安全配置，我们可以确保开发、测试和生产环境的一致性，同时保障系统的安全性和可维护性。

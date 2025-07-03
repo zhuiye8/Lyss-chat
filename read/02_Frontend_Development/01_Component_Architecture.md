@@ -79,7 +79,7 @@ graph TD
     import { Chat, Bubble, Composer, useXChat } from '@ant-design/x';
     import { useChatStore } from '@/stores/chatStore';
     import { chatCompletion } from '@/services/lyss/chatAPI'; // 流式API服务
-    import { Spin } from 'antd';
+    import { Spin, message } from 'antd';
 
     // 定义消息的数据结构
     interface IChatMessage {
@@ -94,21 +94,62 @@ graph TD
       // 使用 useXChat hook 管理聊天状态和逻辑
       const { messages, sendMessage, loading } = useXChat<IChatMessage>({
         // onSendMessage 是核心，它定义了消息发送时的行为
-        onSendMessage: async (message) => {
+        onSendMessage: async (userMessage) => {
           if (!currentModelId) {
-            // 实际应有更友好的提示
-            alert("Please select a model first!");
+            message.error("请先选择一个模型");
             return;
           }
           
-          // 调用我们的流式API
-          const stream = await chatCompletion({
-            model_id: currentModelId,
-            messages: [{ role: message.role, content: message.content }],
-          });
+          try {
+            // 调用我们的流式API，传递完整的历史消息
+            const response = await chatCompletion({
+              model_id: currentModelId,
+              messages: [...messages, { role: 'user', content: userMessage.content }],
+            });
 
-          // 将流式响应传递给 x-chat 的流处理器
-          return stream;
+            // 处理流式响应
+            if (!response.body) {
+              throw new Error('No response body');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let assistantMessage = '';
+
+            return new ReadableStream({
+              async start(controller) {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  
+                  const chunk = decoder.decode(value);
+                  const lines = chunk.split('\n');
+                  
+                  for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                      const data = line.slice(6).trim();
+                      if (data === '[DONE]') continue;
+                      
+                      try {
+                        const parsed = JSON.parse(data);
+                        const content = parsed.choices?.[0]?.delta?.content || '';
+                        if (content) {
+                          assistantMessage += content;
+                          controller.enqueue(new TextEncoder().encode(content));
+                        }
+                      } catch (e) {
+                        console.warn('Failed to parse SSE data:', data);
+                      }
+                    }
+                  }
+                }
+                controller.close();
+              }
+            });
+          } catch (error) {
+            message.error('发送消息失败: ' + error.message);
+            throw error;
+          }
         },
       });
 
@@ -121,6 +162,7 @@ graph TD
             <Composer
               placeholder="请输入您的问题..."
               onSend={(value) => sendMessage({ role: 'user', content: value })}
+              disabled={loading}
             />
           }
           loading={loading && <Spin />}

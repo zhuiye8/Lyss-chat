@@ -75,21 +75,29 @@ from .registry import get_provider_class
 from .base import LLMProvider
 from app.models.provider import Provider as ProviderModel
 from app.core.security import decrypt # 假设的解密函数
+from fastapi import HTTPException
 
 def create_provider_instance(provider_model: ProviderModel) -> LLMProvider:
     """
     Creates a provider instance from a provider SQLAlchemy model.
     """
-    provider_cls = get_provider_class(provider_model.provider_type)
-    
-    # 1. 解密存储在数据库中的配置字符串
-    decrypted_config_str = decrypt(provider_model.config_encrypted)
-    
-    # 2. 将 JSON 字符串解析为字典
-    config_dict = json.loads(decrypted_config_str)
-    
-    # 3. 使用插件类进行实例化 (内部会进行Pydantic验证)
-    return provider_cls(config_dict)
+    try:
+        provider_cls = get_provider_class(provider_model.provider_type)
+        
+        # 1. 解密存储在数据库中的配置字符串
+        decrypted_config_str = decrypt(provider_model.config_encrypted)
+        
+        # 2. 将 JSON 字符串解析为字典
+        config_dict = json.loads(decrypted_config_str)
+        
+        # 3. 使用插件类进行实例化 (内部会进行Pydantic验证)
+        return provider_cls(config_dict)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create provider instance: {str(e)}"
+        )
 ```
 
 ### 2.3. 具体实现示例: `openai_provider.py` (V2.1 更新)

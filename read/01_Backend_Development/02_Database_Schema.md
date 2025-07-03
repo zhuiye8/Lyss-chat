@@ -108,10 +108,82 @@ erDiagram
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         model_id UUID NOT NULL REFERENCES models(id) ON DELETE CASCADE,
-        -- ... 其他权限规则字段
+        
+        -- 权限控制字段
+        is_active BOOLEAN DEFAULT TRUE NOT NULL,
+        expires_at TIMESTAMPTZ NULL, -- NULL表示永久权限
+        
+        -- 配额限制
+        daily_quota INTEGER NULL, -- 每日调用次数限制
+        monthly_quota INTEGER NULL, -- 每月调用次数限制
+        
+        -- 审计字段
+        granted_by UUID NOT NULL REFERENCES users(id), -- 谁授予的权限
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        
         UNIQUE (user_id, model_id)
     );
+    CREATE INDEX idx_user_model_accesses_user_id ON user_model_accesses(user_id);
+    CREATE INDEX idx_user_model_accesses_expires_at ON user_model_accesses(expires_at);
+    ```
+
+### 3.5. `usage_logs`
+
+*   **描述**: 记录所有AI调用的详细使用情况，用于成本统计和配额管理。
+*   **SQL**:
+    ```sql
+    CREATE TABLE usage_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        model_id UUID NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+        
+        -- Token使用情况
+        prompt_tokens INTEGER NOT NULL,
+        completion_tokens INTEGER NOT NULL,
+        total_tokens INTEGER NOT NULL,
+        
+        -- 成本计算
+        cost DECIMAL(10, 6) NOT NULL DEFAULT 0, -- 美元计价，6位小数精度
+        
+        -- 审计字段
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        
+        -- 索引优化
+        CONSTRAINT usage_logs_tokens_check CHECK (total_tokens = prompt_tokens + completion_tokens)
+    );
+    CREATE INDEX idx_usage_logs_user_id_created_at ON usage_logs(user_id, created_at);
+    CREATE INDEX idx_usage_logs_model_id_created_at ON usage_logs(model_id, created_at);
+    ```
+
+### 3.6. `uploaded_files`
+
+*   **描述**: 存储用户上传的文件信息，支持文档问答功能。
+*   **SQL**:
+    ```sql
+    CREATE TABLE uploaded_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        
+        -- 文件基本信息
+        original_filename VARCHAR(255) NOT NULL,
+        file_path VARCHAR(500) NOT NULL, -- 存储路径
+        file_size BIGINT NOT NULL, -- 字节
+        mime_type VARCHAR(100) NOT NULL,
+        
+        -- 处理状态
+        status VARCHAR(50) DEFAULT 'pending' NOT NULL, -- pending, processing, completed, failed
+        processing_error TEXT NULL,
+        
+        -- 向量化信息
+        total_chunks INTEGER DEFAULT 0,
+        qdrant_collection VARCHAR(100) NULL, -- Qdrant集合名称
+        
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX idx_uploaded_files_user_id ON uploaded_files(user_id);
+    CREATE INDEX idx_uploaded_files_status ON uploaded_files(status);
     ```
 
 ---
-(后续表结构无变化)

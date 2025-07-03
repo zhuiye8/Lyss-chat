@@ -136,16 +136,16 @@ const ProviderForm = ({ provider }) => {
 import { create } from 'zustand';
 
 interface ChatState {
-  currentModel: string | null; // 当前选中的模型ID
+  currentModelId: string | null; // 当前选中的模型ID
   isSidebarCollapsed: boolean;
-  setCurrentModel: (modelId: string) => void;
+  setCurrentModelId: (modelId: string) => void;
   toggleSidebar: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
-  currentModel: null,
+  currentModelId: null,
   isSidebarCollapsed: false,
-  setCurrentModel: (modelId) => set({ currentModel: modelId }),
+  setCurrentModelId: (modelId) => set({ currentModelId: modelId }),
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 }));
 ```
@@ -159,8 +159,8 @@ export const useChatStore = create<ChatState>((set) => ({
 import { useChatStore } from '@/stores/chatStore';
 
 const ModelSelector = () => {
-  // 只订阅 currentModel 和 setCurrentModel 的变化
-  const { currentModel, setCurrentModel } = useChatStore();
+  // 只订阅 currentModelId 和 setCurrentModelId 的变化
+  const { currentModelId, setCurrentModelId } = useChatStore();
   
   // ...
 };
