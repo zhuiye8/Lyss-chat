@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/sse",
+      "transport": "sse",
+      "timeout": 600000,
+      "trust": true
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "timeout": 600000,
+      "trust": true
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/root/work/Lyss/memory.json"
+      }
+    }
+  }
+}
