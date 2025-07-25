@@ -1,0 +1,189 @@
+{
+  "project_info": {
+    "name": "Lyss AI Platform",
+    "version": "v0.1.0",
+    "last_updated": "2025-01-25T00:00:00Z",
+    "total_services": 6,
+    "completed_services": 0
+  },
+  "infrastructure": {
+    "postgresql": {
+      "status": "not_deployed",
+      "version": "15+",
+      "endpoint": "localhost:5432",
+      "health_check": "pg_isready -h localhost -p 5432",
+      "last_check": null
+    },
+    "redis": {
+      "status": "not_deployed", 
+      "version": "7+",
+      "endpoint": "localhost:6379",
+      "health_check": "redis-cli ping",
+      "last_check": null
+    },
+    "clickhouse": {
+      "status": "not_deployed",
+      "version": "23+", 
+      "endpoint": "localhost:8123",
+      "health_check": "curl http://localhost:8123/ping",
+      "last_check": null
+    },
+    "prometheus": {
+      "status": "not_deployed",
+      "version": "2.40+",
+      "endpoint": "localhost:9090",
+      "health_check": "curl http://localhost:9090/-/healthy",
+      "last_check": null
+    },
+    "grafana": {
+      "status": "not_deployed",
+      "version": "9.0+",
+      "endpoint": "localhost:3000", 
+      "health_check": "curl http://localhost:3000/api/health",
+      "last_check": null
+    }
+  },
+  "services": {
+    "user-service": {
+      "status": "not_started",
+      "version": "v0.0.0",
+      "port": 8001,
+      "endpoint": "localhost:8001",
+      "health_endpoint": "http://localhost:8001/health",
+      "api_docs": "http://localhost:8001/swagger/index.html",
+      "database": "lyss_user_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["postgresql", "redis"],
+      "api_endpoints": [
+        "POST /users - 创建用户",
+        "GET /users/{id} - 获取用户信息",
+        "PUT /users/{id} - 更新用户信息", 
+        "DELETE /users/{id} - 删除用户",
+        "GET /users - 用户列表查询"
+      ]
+    },
+    "auth-service": {
+      "status": "not_started",
+      "version": "v0.0.0", 
+      "port": 8002,
+      "endpoint": "localhost:8002",
+      "health_endpoint": "http://localhost:8002/health",
+      "api_docs": "http://localhost:8002/swagger/index.html",
+      "database": "lyss_auth_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["user-service", "redis"],
+      "api_endpoints": [
+        "POST /auth/login - 用户登录",
+        "POST /auth/logout - 用户登出", 
+        "POST /auth/refresh - 刷新token",
+        "GET /auth/verify - 验证token有效性"
+      ]
+    },
+    "credential-service": {
+      "status": "not_started",
+      "version": "v0.0.0",
+      "port": 8003, 
+      "endpoint": "localhost:8003",
+      "health_endpoint": "http://localhost:8003/health",
+      "api_docs": "http://localhost:8003/swagger/index.html",
+      "database": "lyss_credential_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["auth-service", "postgresql"],
+      "api_endpoints": [
+        "POST /credentials - 创建API凭证",
+        "GET /credentials - 获取用户凭证列表",
+        "PUT /credentials/{id} - 更新凭证信息",
+        "DELETE /credentials/{id} - 删除凭证"
+      ]
+    },
+    "group-service": {
+      "status": "not_started", 
+      "version": "v0.0.0",
+      "port": 8004,
+      "endpoint": "localhost:8004",
+      "health_endpoint": "http://localhost:8004/health",
+      "api_docs": "http://localhost:8004/swagger/index.html", 
+      "database": "lyss_group_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["user-service", "auth-service", "redis"],
+      "api_endpoints": [
+        "POST /groups - 创建群组",
+        "GET /groups/{id} - 获取群组信息",
+        "PUT /groups/{id} - 更新群组信息",
+        "DELETE /groups/{id} - 删除群组",
+        "POST /groups/{id}/members - 添加群组成员",
+        "DELETE /groups/{id}/members/{user_id} - 移除群组成员"
+      ]
+    },
+    "gateway-service": {
+      "status": "not_started",
+      "version": "v0.0.0",
+      "port": 8000,
+      "endpoint": "localhost:8000", 
+      "health_endpoint": "http://localhost:8000/health",
+      "api_docs": "http://localhost:8000/swagger/index.html",
+      "database": "lyss_gateway_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["user-service", "auth-service", "credential-service", "group-service", "redis"],
+      "api_endpoints": [
+        "POST /gateway/chat - AI对话接口",
+        "GET /gateway/providers - 获取可用AI供应商",
+        "GET /gateway/sessions/{id} - 获取会话信息",
+        "DELETE /gateway/sessions/{id} - 删除会话"
+      ]
+    },
+    "billing-service": {
+      "status": "not_started",
+      "version": "v0.0.0",
+      "port": 8005,
+      "endpoint": "localhost:8005",
+      "health_endpoint": "http://localhost:8005/health", 
+      "api_docs": "http://localhost:8005/swagger/index.html",
+      "database": "lyss_billing_db",
+      "tests_passing": false,
+      "coverage_percentage": 0,
+      "last_updated": null,
+      "dependencies": ["gateway-service", "clickhouse", "redis"],
+      "api_endpoints": [
+        "GET /billing/usage/{user_id} - 获取用户使用统计",
+        "GET /billing/costs/{user_id} - 获取用户费用统计", 
+        "POST /billing/quotas - 设置用户配额",
+        "GET /billing/reports - 生成计费报告"
+      ]
+    }
+  },
+  "testing": {
+    "unit_tests": {
+      "total": 0,
+      "passing": 0,
+      "failing": 0,
+      "coverage": "0%"
+    },
+    "integration_tests": {
+      "total": 0,
+      "passing": 0, 
+      "failing": 0
+    },
+    "e2e_tests": {
+      "total": 0,
+      "passing": 0,
+      "failing": 0
+    }
+  },
+  "deployment": {
+    "environment": "development",
+    "docker_images_built": 0,
+    "kubernetes_ready": false,
+    "monitoring_configured": false
+  }
+}
