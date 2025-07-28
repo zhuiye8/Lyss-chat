@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- ClickHouse 服务配置 -->
+    <logger>
+        <level>information</level>
+        <console>true</console>
+    </logger>
+
+    <!-- HTTP 服务配置 -->
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+
+    <!-- 监听地址 -->
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- 数据路径 -->
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+
+    <!-- 用户配置 -->
+    <users_config>users.xml</users_config>
+
+    <!-- 默认数据库 -->
+    <default_database>default</default_database>
+
+    <!-- 默认配置文件 -->
+    <default_profile>default</default_profile>
+
+    <!-- 时区设置 -->
+    <timezone>UTC</timezone>
+
+    <!-- 内存限制 -->
+    <max_server_memory_usage_to_ram_ratio>0.7</max_server_memory_usage_to_ram_ratio>
+
+    <!-- 查询缓存 -->
+    <query_cache>
+        <max_size_in_bytes>1073741824</max_size_in_bytes>
+        <max_entries>1024</max_entries>
+        <max_entry_size_in_bytes>1048576</max_entry_size_in_bytes>
+        <max_entry_size_in_rows>30000000</max_entry_size_in_rows>
+    </query_cache>
+
+    <!-- Lyss AI Platform 特定配置 -->
+    <lyss_ai_platform>
+        <billing_table>usage_metrics</billing_table>
+        <analytics_table>chat_analytics</analytics_table>
+        <retention_days>90</retention_days>
+    </lyss_ai_platform>
+
+    <!-- 压缩设置 -->
+    <compression incl="clickhouse_compression">
+        <case>
+            <method>lz4</method>
+        </case>
+    </compression>
+</clickhouse>

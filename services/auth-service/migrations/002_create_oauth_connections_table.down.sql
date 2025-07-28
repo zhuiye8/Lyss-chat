@@ -1,0 +1,10 @@
+-- 认证服务数据库迁移回滚 - 删除OAuth集成表
+-- 迁移版本: 002
+-- 创建时间: 2025-07-28
+
+BEGIN;
+
+-- 删除表（会自动删除索引和约束）
+DROP TABLE IF EXISTS oauth_connections CASCADE;
+
+COMMIT;

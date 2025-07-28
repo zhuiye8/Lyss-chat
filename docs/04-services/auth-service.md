@@ -1033,12 +1033,13 @@ func (s *OAuthService) generateState() (string, error) {
 package middleware
 
 import (
-    "net/http"
+    "context"
     "strings"
     
-    "github.com/gin-gonic/gin"
+    "github.com/go-kratos/kratos/v2/middleware"
+    "github.com/go-kratos/kratos/v2/transport/http"
     "auth-service/internal/service"
-    "auth-service/internal/utils"
+    "auth-service/api/auth/v1"
 )
 
 type JWTMiddleware struct {
@@ -1051,32 +1052,32 @@ func NewJWTMiddleware(authService *service.AuthService) *JWTMiddleware {
     }
 }
 
-// JWT认证中间件
-func (m *JWTMiddleware) RequireAuth() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // 1. 提取令牌
-        token := m.extractToken(c)
-        if token == "" {
-            utils.ErrorResponse(c, http.StatusUnauthorized, "缺少访问令牌", nil)
-            c.Abort()
-            return
+// JWT认证中间件 (Kratos风格)
+func (m *JWTMiddleware) RequireAuth() middleware.Middleware {
+    return func(handler middleware.Handler) middleware.Handler {
+        return func(ctx context.Context, req interface{}) (interface{}, error) {
+            // 1. 从请求中提取令牌
+            if tr, ok := transport.FromServerContext(ctx); ok {
+                token := tr.RequestHeader().Get("Authorization")
+                if token == "" {
+                    return nil, errors.Unauthorized("MISSING_TOKEN", "缺少访问令牌")
+                }
+                
+                // 2. 验证令牌
+                result, err := m.authService.VerifyToken(ctx, token)
+                if err != nil || !result.Valid {
+                    return nil, errors.Unauthorized("INVALID_TOKEN", "无效的访问令牌")
+                }
+                
+                // 3. 设置用户信息到上下文
+                ctx = context.WithValue(ctx, "user_id", result.UserID)
+                ctx = context.WithValue(ctx, "username", result.Username)
+                ctx = context.WithValue(ctx, "user_role", result.Role)
+                ctx = context.WithValue(ctx, "permissions", result.Permissions)
+            }
+            
+            return handler(ctx, req)
         }
-        
-        // 2. 验证令牌
-        result, err := m.authService.VerifyToken(c.Request.Context(), token)
-        if err != nil || !result.Valid {
-            utils.ErrorResponse(c, http.StatusUnauthorized, "无效的访问令牌", err)
-            c.Abort()
-            return
-        }
-        
-        // 3. 设置用户信息到上下文
-        c.Set("user_id", result.UserID)
-        c.Set("username", result.Username)
-        c.Set("user_role", result.Role)
-        c.Set("permissions", result.Permissions)
-        
-        c.Next()
     }
 }
 
@@ -1174,7 +1175,7 @@ func (m *JWTMiddleware) extractToken(c *gin.Context) string {
 
 ```go
 // 认证相关限流中间件
-func (m *AuthMiddleware) LoginRateLimit() gin.HandlerFunc {
+func (m *AuthMiddleware) LoginRateLimit() middleware.Middleware {
     limiter := rate.NewLimiter(rate.Every(time.Second), 5) // 每秒最多5次登录尝试
     
     return func(c *gin.Context) {

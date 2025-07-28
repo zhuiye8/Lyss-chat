@@ -753,12 +753,12 @@ func (r *userRepository) BeginTx(ctx context.Context) *gorm.DB {
 package handler
 
 import (
-    "net/http"
+    "context"
     "strconv"
     
-    "github.com/gin-gonic/gin"
+    "github.com/go-kratos/kratos/v2/log"
     "user-service/internal/service"
-    "user-service/internal/utils"
+    "user-service/api/user/v1"
 )
 
 type UserHandler struct {
@@ -771,31 +771,30 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
     }
 }
 
-// 用户注册
-func (h *UserHandler) Register(c *gin.Context) {
-    var req RegisterRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        utils.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err)
-        return
-    }
-    
-    user, err := h.userService.RegisterUser(c.Request.Context(), &req)
+// 用户注册 (Kratos风格)
+func (h *UserHandler) Register(ctx context.Context, req *v1.RegisterRequest) (*v1.RegisterResponse, error) {
+    user, err := h.userService.RegisterUser(ctx, req)
     if err != nil {
-        utils.ErrorResponse(c, http.StatusBadRequest, "注册失败", err)
-        return
+        return nil, err
     }
     
-    utils.SuccessResponse(c, "注册成功", user)
+    return &v1.RegisterResponse{
+        User: user,
+        Message: "注册成功",
+    }, nil
 }
 
-// 获取用户信息
-func (h *UserHandler) GetUser(c *gin.Context) {
-    userIDStr := c.Param("user_id")
-    userID, err := strconv.ParseUint(userIDStr, 10, 64)
+// 获取用户信息 (Kratos风格)
+func (h *UserHandler) GetUser(ctx context.Context, req *v1.GetUserRequest) (*v1.GetUserResponse, error) {
+    user, err := h.userService.GetUser(ctx, req.UserId)
     if err != nil {
-        utils.ErrorResponse(c, http.StatusBadRequest, "用户ID格式错误", err)
-        return
+        return nil, err
     }
+    
+    return &v1.GetUserResponse{
+        User: user,
+    }, nil
+}
     
     user, err := h.userService.GetUserByID(c.Request.Context(), userID)
     if err != nil {
@@ -807,7 +806,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 }
 
 // 更新用户信息
-func (h *UserHandler) UpdateUser(c *gin.Context) {
+func (h *UserHandler) UpdateUser(ctx context.Context, req *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error) {
     userIDStr := c.Param("user_id")
     userID, err := strconv.ParseUint(userIDStr, 10, 64)
     if err != nil {
@@ -830,7 +829,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 }
 
 // 用户列表查询
-func (h *UserHandler) ListUsers(c *gin.Context) {
+func (h *UserHandler) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
     var req ListUsersRequest
     if err := c.ShouldBindQuery(&req); err != nil {
         utils.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err)
@@ -1152,15 +1151,15 @@ import (
     "net/http/httptest"
     "testing"
     
-    "github.com/gin-gonic/gin"
+    "github.com/go-kratos/kratos/v2/middleware"
     "github.com/stretchr/testify/assert"
     "user-service/internal/handler"
 )
 
 func TestUserHandler_Register(t *testing.T) {
     // 设置测试环境
-    gin.SetMode(gin.TestMode)
-    router := gin.New()
+    // Kratos测试环境初始化
+    app := kratos.New()
     
     userHandler := handler.NewUserHandler(userService)
     router.POST("/api/v1/users/register", userHandler.Register)

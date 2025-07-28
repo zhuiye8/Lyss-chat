@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "/root/work/toolbox",
+      "args": ["--prebuilt","postgres","--stdio"],
+      "env": {
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_PORT": "5433",
+        "POSTGRES_DATABASE": "lyss_platform",
+        "POSTGRES_USER": "lyss",
+        "POSTGRES_PASSWORD": "lyss123"
+      }
+    }
+  }
+}

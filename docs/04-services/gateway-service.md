@@ -29,7 +29,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Gateway Service                          │
 ├─────────────────────────────────────────────────────────────┤
-│  HTTP Layer (Gin Router)                                   │
+│  HTTP Layer (Kratos HTTP Server)                          │
 │  ├── /api/v1/chat/completions                              │
 │  ├── /api/v1/embeddings                                    │
 │  └── /api/v1/models                                        │

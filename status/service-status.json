@@ -2,31 +2,34 @@
   "project_info": {
     "name": "Lyss AI Platform",
     "version": "v0.1.0",
-    "last_updated": "2025-01-25T00:00:00Z",
+    "last_updated": "2025-07-28T15:10:00Z",
     "total_services": 6,
     "completed_services": 0
   },
   "infrastructure": {
     "postgresql": {
-      "status": "not_deployed",
+      "status": "running",
       "version": "15+",
-      "endpoint": "localhost:5432",
-      "health_check": "pg_isready -h localhost -p 5432",
-      "last_check": null
+      "endpoint": "localhost:5433",
+      "health_check": "pg_isready -h localhost -p 5433",
+      "last_check": "2025-07-28T15:10:00Z",
+      "database_tables": 17,
+      "notes": "所有业务表结构已创建完成，包括外键约束和索引"
     },
     "redis": {
-      "status": "not_deployed", 
+      "status": "running", 
       "version": "7+",
       "endpoint": "localhost:6379",
       "health_check": "redis-cli ping",
-      "last_check": null
+      "last_check": "2025-07-28T15:10:00Z"
     },
     "clickhouse": {
-      "status": "not_deployed",
+      "status": "running",
       "version": "23+", 
       "endpoint": "localhost:8123",
-      "health_check": "curl http://localhost:8123/ping",
-      "last_check": null
+      "health_check": "wget --spider http://127.0.0.1:8123/",
+      "last_check": "2025-07-28T15:10:00Z",
+      "notes": "健康检查配置已修复"
     },
     "prometheus": {
       "status": "not_deployed",

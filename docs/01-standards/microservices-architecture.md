@@ -51,7 +51,7 @@ graph TB
   - 用户状态管理
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - 数据库: PostgreSQL
   - 缓存: Redis
 API端点:
@@ -72,7 +72,7 @@ API端点:
   - 会话管理
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - 密钥管理: HashiCorp Vault
   - 缓存: Redis
 API端点:
@@ -93,7 +93,7 @@ API端点:
   - 群组生命周期管理
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - 数据库: PostgreSQL
   - 消息队列: NATS
 API端点:
@@ -114,7 +114,7 @@ API端点:
   - 凭证权限控制
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - 数据库: PostgreSQL
   - 加密: AES-256-GCM
   - 密钥管理: HashiCorp Vault
@@ -136,7 +136,7 @@ API端点:
   - 失败重试机制
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - HTTP客户端: fasthttp
   - 熔断器: go-circuit-breaker
 API端点:
@@ -157,9 +157,9 @@ API端点:
   - 计费规则维护
 技术栈:
   - 语言: Go 1.21+
-  - 框架: Gin Web Framework
+  - 框架: Kratos 微服务框架
   - 数据库: PostgreSQL
-  - 时序数据库: InfluxDB
+  - 时序数据库: ClickHouse
   - 消息队列: NATS
 API端点:
   - POST /api/v1/billing/usage
@@ -170,32 +170,26 @@ API端点:
 
 ### 2.2 支撑服务组件
 
-#### API网关 (API Gateway)
+#### Kubernetes Ingress 网关
 ```yaml
-服务名称: api-gateway
-技术选型: Spring Cloud Gateway
-端口: 8080
+服务名称: nginx-ingress
+技术选型: NGINX Ingress Controller
+端口: 80/443
 职责范围:
-  - 统一API入口
-  - 请求路由与负载均衡
-  - 认证授权集成
-  - 限流熔断保护
-  - 请求响应转换
+  - 外部流量入口
+  - TLS终结和证书管理
+  - 基础路由分发
+  - 限流和防护
 关键特性:
-  - 基于反应式架构，非阻塞I/O
-  - 动态路由配置
-  - JWT认证集成
-  - WebFlux支持
+  - 云原生设计，与Kubernetes深度集成
+  - 高性能代理转发
+  - 自动服务发现
+  - Let's Encrypt自动证书
 配置示例:
-  routes:
-    - id: user-service
-      uri: http://user-service:8001
-      predicates:
-        - Path=/api/v1/users/**
-      filters:
-        - name: RequestRateLimiter
-          args:
-            rate-limiter: "#{@redisRateLimiter}"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
 ```
 
 #### 服务网格 (Service Mesh)
@@ -502,17 +496,17 @@ Kubernetes Health Checks:
 
 #### 健康检查实现
 ```go
-// 健康检查处理器
-func (h *HealthHandler) LivenessCheck(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{
-        "status": "alive",
-        "timestamp": time.Now().UTC().Format(time.RFC3339),
-        "service": "user-service",
-        "version": "1.0.0",
-    })
+// 健康检查处理器 (Kratos风格)
+func (h *HealthHandler) LivenessCheck(ctx context.Context, req *emptypb.Empty) (*HealthResponse, error) {
+    return &HealthResponse{
+        Status:    "alive",
+        Timestamp: time.Now().UTC().Format(time.RFC3339),
+        Service:   "user-service",
+        Version:   "1.0.0",
+    }, nil
 }
 
-func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
+func (h *HealthHandler) ReadinessCheck(ctx context.Context, req *emptypb.Empty) (*HealthResponse, error) {
     checks := h.performHealthChecks()
     
     allHealthy := true
@@ -523,19 +517,16 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
         }
     }
     
-    status := http.StatusOK
+    status := "ready"
     if !allHealthy {
-        status = http.StatusServiceUnavailable
+        status = "not_ready"
     }
     
-    c.JSON(status, gin.H{
-        "status": map[string]string{
-            true:  "ready",
-            false: "not_ready",
-        }[allHealthy],
-        "checks": checks,
-        "timestamp": time.Now().UTC().Format(time.RFC3339),
-    })
+    return &HealthResponse{
+        Status:    status,
+        Checks:    checks,
+        Timestamp: time.Now().UTC().Format(time.RFC3339),
+    }, nil
 }
 ```
 
@@ -580,31 +571,25 @@ spec:
   client:
     meshTLS:
       identities:
-        - "api-gateway.lyss-platform.serviceaccount.identity.linkerd.cluster.local"
+        - "gateway-service.lyss-platform.serviceaccount.identity.linkerd.cluster.local"
 ```
 
-#### API网关认证授权
+#### Gateway服务认证授权
 ```yaml
-Spring Cloud Gateway安全配置:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://auth-service:8002/.well-known/jwks.json
-          issuer-uri: http://auth-service:8002
+Gateway服务认证配置:
+  jwt:
+    secret_key: ${JWT_SECRET_KEY}
+    issuer: "lyss-auth-service"
+    expire_time: 1800  # 30分钟
   
 路由安全策略:
-  routes:
-    - id: protected-route
-      uri: http://user-service:8001
-      predicates:
-        - Path=/api/v1/users/**
-      filters:
-        - TokenRelay
-        - name: RequestRateLimiter
-          args:
-            rate-limiter: "#{@redisRateLimiter}"
-            key-resolver: "#{@userKeyResolver}"
+  middleware:
+    - jwt_auth      # JWT认证中间件
+    - rate_limiter  # 限流中间件
+    - cors          # 跨域中间件
+  rate_limit:
+    requests_per_minute: 1000
+    burst: 100
 ```
 
 ### 6.2 秘密管理
@@ -765,8 +750,9 @@ func InitTracing(serviceName string) (*sdktrace.TracerProvider, error) {
 }
 
 // HTTP处理器追踪
-func TracingMiddleware() gin.HandlerFunc {
-    return otelgin.Middleware("user-service")
+// Kratos中间件风格
+func TracingMiddleware() middleware.Middleware {
+    return tracing.Server()
 }
 
 // 数据库操作追踪
@@ -1483,13 +1469,13 @@ Week 23-24: 智能运维
 - 每个服务独立数据库
 - 使用PostgreSQL作为主要数据库
 - Redis作为缓存和会话存储
-- InfluxDB存储时序监控数据
+- ClickHouse存储时序监控数据
 
 **理由**:
 - 数据库隔离确保服务独立性
 - PostgreSQL功能全面，性能优秀
 - Redis高性能缓存，支持多种数据结构
-- InfluxDB专门优化时序数据
+- ClickHouse专门优化时序数据和分析查询
 
 **后果**:
 - 数据一致性需要分布式事务

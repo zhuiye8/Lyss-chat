@@ -29,7 +29,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Billing Service                         │
 ├─────────────────────────────────────────────────────────────┤
-│  HTTP Layer (Gin Router)                                   │
+│  HTTP Layer (Kratos HTTP Server)                          │
 │  ├── /api/v1/billing/usage                                 │
 │  ├── /api/v1/billing/quotas                                │
 │  └── /api/v1/billing/reports                               │
